@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <meta name="format-detection" content="telephone=no" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="MobileOptimized" content="176" />
@@ -11,22 +10,24 @@
   <meta name="robots" content="noindex,nofollow" />
   <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 
-  <title>My Puzzle Mini App</title>
+  <title>Jigsaw Puzzle Mini App</title>
 
   <style>
-    body {
-      --bg-color: var(--tg-theme-bg-color, #fff);
-      font-family: sans-serif;
-      background-color: var(--bg-color);
-      color: var(--tg-theme-text-color, #222);
-      font-size: 14px;
+    body, html {
       margin: 0;
-      padding: 15px;
-      color-scheme: var(--tg-color-scheme);
+      padding: 0;
+      font-family: sans-serif;
+      background: #f0f0f0;
+      color: #222;
+      height: 100%;
     }
 
-    body.gray {
-      background-color: var(--tg-theme-secondary-bg-color, #efefef);
+    .container {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 15px;
+      text-align: center;
     }
 
     .title {
@@ -35,71 +36,126 @@
       margin-bottom: 10px;
     }
 
-    .hint {
-      font-size: 12px;
-      color: var(--tg-theme-hint-color, #999);
-      margin-bottom: 15px;
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
     }
 
-    .main-container {
-      padding: 10px;
-      border-radius: 8px;
-      background-color: var(--tg-theme-secondary-bg-color, #efefef);
+    .puzzle-wrapper {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
     }
 
     .puzzle {
       display: inline-grid;
-      grid-template-columns: 25% 25% 25% 25%;
-      grid-template-rows: 25% 25% 25% 25%;
-      width: 200px;
-      height: 200px;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      width: 240px;
+      height: 240px;
       border: 1px solid #ccc;
-      margin-top: 10px;
+      background: #f9f9f9;
     }
 
-    .puzzle div {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .puzzle img {
       border: 1px solid #eee;
-      background: #f0f0f0;
-      font-size: 20px;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
-  <div class="main-container">
-    <div class="title">Telegram Puzzle Mini App</div>
-    <div class="hint">This app is connected to your Telegram bot.</div>
+  <div class="container">
+    <div class="title">Jigsaw Puzzle in Telegram</div>
+    <div class="subtitle">
+      This is a simplified version of “jigsaw‑bot” with a fixed image.
+    </div>
 
-    <div class="puzzle" id="puzzle"></div>
+    <div class="puzzle-wrapper">
+      <div id="puzzle" class="puzzle"></div>
+    </div>
   </div>
 
   <script>
     //----------------------------
-    // Telegram WebApp setup
+    // Telegram WebApp init
     //----------------------------
     Telegram.WebApp.ready();
-
-    Telegram.WebApp.onEvent("viewportChanged", () => {
-      Telegram.WebApp.expand();
-    });
+    Telegram.WebApp.expand();
 
     //----------------------------
-    // Puzzle generator
+    // Puzzle image (you change this URL)
+    // Replace this image with YOUR own picture hosted on Vercel or GitHub Pages
     //----------------------------
-    const numbers = Array.from({ length: 15 }, (_, i) => i + 1);
-    numbers.sort(() => Math.random() - 0.5);
-    numbers.push("");
+    const imageUrl = "https://via.placeholder.com/300x300/ff9900/ffffff?text=PUZZLE";
 
-    const puzzle = document.getElementById("puzzle");
-    puzzle.innerHTML = "";
+    let pieces = [];
 
-    numbers.forEach((n) => {
-      const div = document.createElement("div");
-      div.textContent = n;
-      puzzle.appendChild(div);
-    });
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function loadPuzzle() {
+      const puzzle = document.getElementById("puzzle");
+      puzzle.innerHTML = "";
+
+      const img = new Image();
+      img.src = imageUrl;
+
+      img.onload = () => {
+        const w = img.naturalWidth / 3;
+        const h = img.naturalHeight / 3;
+
+        pieces = [];
+
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 3; col++) {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = w;
+            canvas.height = h;
+
+            ctx.drawImage(
+              img,
+              col * w,
+              row * h,
+              w,
+              h,
+              0,
+              0,
+              w,
+              h
+            );
+
+            pieces.push({
+              row,
+              col,
+              canvas: canvas
+            });
+          }
+        }
+
+        // перемешиваем кусочки
+        shuffle(pieces);
+
+        pieces.forEach(({ row, col, canvas }) => {
+          const div = document.createElement("div");
+          const img = document.createElement("img");
+          img.src = canvas.toDataURL();
+          div.appendChild(img);
+          puzzle.appendChild(div);
+        });
+      };
+    }
+
+    loadPuzzle();
   </script>
 </body>
 </html>
