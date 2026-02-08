@@ -29,12 +29,34 @@
       margin-top: 0;
       font-size: 24px;
     }
+    #uploadSection, #puzzleSection {
+      width: 100%;
+    }
     #preview {
       max-width: 100%;
       max-height: 300px;
       margin: 20px 0;
       border-radius: 12px;
-      display: none;
+      display: block;
+    }
+    #puzzleGrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin: 20px 0;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+    .puzzle-piece {
+      background-size: cover;
+      background-position: center;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .puzzle-piece:active {
+      transform: scale(0.95);
     }
     input[type="file"] {
       margin: 16px 0;
@@ -47,19 +69,33 @@
       border-radius: 12px;
       font-size: 16px;
       cursor: pointer;
+      margin-top: 10px;
     }
     button:disabled {
       background: #cccccc;
       cursor: not-allowed;
     }
+    #backBtn {
+      background: #666;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🧩 Загрузи своё фото</h1>
-    <input type="file" id="imageInput" accept="image/*" />
-    <img id="preview" alt="Предпросмотр" />
-    <button id="nextBtn" disabled>Создать пазл</button>
+    <!-- Этап загрузки -->
+    <div id="uploadSection">
+      <h1>🧩 Загрузи своё фото</h1>
+      <input type="file" id="imageInput" accept="image/*" />
+      <img id="preview" alt="Предпросмотр" />
+      <button id="nextBtn" disabled>Создать пазл</button>
+    </div>
+
+    <!-- Этап пазла -->
+    <div id="puzzleSection" style="display: none;">
+      <h1>🧩 Собери пазл!</h1>
+      <div id="puzzleGrid"></div>
+      <button id="backBtn">Назад</button>
+    </div>
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -67,22 +103,84 @@
     Telegram.WebApp.expand();
     Telegram.WebApp.ready();
 
+    // DOM элементы
     const imageInput = document.getElementById('imageInput');
     const preview = document.getElementById('preview');
     const nextBtn = document.getElementById('nextBtn');
+    const uploadSection = document.getElementById('uploadSection');
+    const puzzleSection = document.getElementById('puzzleSection');
+    const puzzleGrid = document.getElementById('puzzleGrid');
+    const backBtn = document.getElementById('backBtn');
 
+    let currentImageSrc = '';
+
+    // Выбор фото
     imageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (event) => {
-        preview.src = event.target.result;
-        preview.style.display = 'block';
+        currentImageSrc = event.target.result;
+        preview.src = currentImageSrc;
         nextBtn.disabled = false;
       };
       reader.readAsDataURL(file);
     });
+
+    // Кнопка "Создать пазл"
+    nextBtn.addEventListener('click', () => {
+      if (!currentImageSrc) return;
+      generatePuzzle(currentImageSrc, 3); // 3x3 сетка
+      uploadSection.style.display = 'none';
+      puzzleSection.style.display = 'block';
+    });
+
+    // Кнопка "Назад"
+    backBtn.addEventListener('click', () => {
+      uploadSection.style.display = 'block';
+      puzzleSection.style.display = 'none';
+      puzzleGrid.innerHTML = '';
+    });
+
+    // Генерация пазла
+    function generatePuzzle(imageSrc, gridSize = 3) {
+      puzzleGrid.innerHTML = '';
+      puzzleGrid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+
+      const pieceSize = 100 / gridSize; // в процентах
+
+      // Создаём массив позиций: [0,1,2,...,8]
+      let positions = [];
+      for (let i = 0; i < gridSize * gridSize; i++) {
+        positions.push(i);
+      }
+
+      // Перемешиваем (простой алгоритм)
+      for (let i = positions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [positions[i], positions[j]] = [positions[j], positions[i]];
+      }
+
+      // Создаём кусочки
+      positions.forEach((originalIndex) => {
+        const row = Math.floor(originalIndex / gridSize);
+        const col = originalIndex % gridSize;
+
+        const piece = document.createElement('div');
+        piece.className = 'puzzle-piece';
+        piece.style.backgroundImage = `url(${imageSrc})`;
+        piece.style.backgroundPosition = `${col * pieceSize}% ${row * pieceSize}%`;
+        piece.style.backgroundSize = `${gridSize * 100}%`;
+
+        // Пока просто показываем клик
+        piece.addEventListener('click', () => {
+          alert('Кусочек ' + (originalIndex + 1));
+        });
+
+        puzzleGrid.appendChild(piece);
+      });
+    }
   </script>
 </body>
 </html>
