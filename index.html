@@ -2,12 +2,12 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Puzzle App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Puzzle Elisey</title>
   <style>
     body {
       margin: 0;
-      padding: 20px;
+      padding: 20px 20px 100px; /* extra bottom for iOS safe area */
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       background: #f5f5f5;
       display: flex;
@@ -15,19 +15,21 @@
       align-items: center;
       min-height: 100vh;
       text-align: center;
+      overflow-x: hidden;
     }
     .container {
       background: white;
       padding: 24px;
       border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       width: 100%;
       max-width: 500px;
       box-sizing: border-box;
     }
-    h1 {
+    h1, h2 {
       margin-top: 0;
       font-size: 24px;
+      color: #333;
     }
     #uploadSection, #puzzleSection, #successSection {
       width: 100%;
@@ -38,6 +40,7 @@
       margin: 20px 0;
       border-radius: 12px;
       display: block;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
     #puzzleGrid {
       display: grid;
@@ -46,20 +49,29 @@
       margin: 20px 0;
       width: 100%;
       aspect-ratio: 1 / 1;
+      border-radius: 12px;
+      overflow: hidden;
     }
     .puzzle-piece {
       background-size: cover;
       background-position: center;
-      border: 1px solid #ddd;
+      border: 1px solid #eee;
       border-radius: 8px;
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .puzzle-piece:active {
-      transform: scale(0.95);
+      transform: scale(0.96);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+    .puzzle-piece.selected {
+      border: 2px solid #0088cc;
+      transform: scale(1.02);
     }
     input[type="file"] {
       margin: 16px 0;
+      width: 100%;
     }
     button {
       background: #0088cc;
@@ -70,6 +82,10 @@
       font-size: 16px;
       cursor: pointer;
       margin-top: 10px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #006699;
     }
     button:disabled {
       background: #cccccc;
@@ -77,20 +93,46 @@
     }
     #backBtn { background: #666; }
     #newGameBtn { background: #4CAF50; }
+    #shareBtn {
+      background: #ff9800;
+      margin-top: 16px;
+    }
     #successSection {
       display: none;
       text-align: center;
       padding: 30px;
+      animation: fadeIn 0.5s ease;
     }
-    #successSection h2 {
-      color: #4CAF50;
-      font-size: 28px;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .confetti {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 100;
+      display: none;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      border-radius: 50%;
+      animation: fall linear forwards;
+    }
+    @keyframes fall {
+      to { transform: translateY(100vh) rotate(720deg); }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Этап загрузки -->
+    <!-- Загрузка -->
     <div id="uploadSection">
       <h1>🧩 Загрузи своё фото</h1>
       <input type="file" id="imageInput" accept="image/*" />
@@ -98,20 +140,24 @@
       <button id="nextBtn" disabled>Создать пазл</button>
     </div>
 
-    <!-- Этап пазла -->
+    <!-- Пазл -->
     <div id="puzzleSection" style="display: none;">
       <h1>🧩 Собери пазл!</h1>
       <div id="puzzleGrid"></div>
       <button id="backBtn">Назад</button>
+      <button id="shareBtn">Поделиться</button>
     </div>
 
     <!-- Победа -->
     <div id="successSection" style="display: none;">
       <h2>🎉 Поздравляем!</h2>
-      <p>Ты собрал пазл!</p>
+      <p>Ты собрал пазл из своего фото!</p>
       <button id="newGameBtn">Новая игра</button>
+      <button id="shareBtnSuccess">Поделиться</button>
     </div>
   </div>
+
+  <div class="confetti" id="confetti"></div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
@@ -128,22 +174,22 @@
     const puzzleGrid = document.getElementById('puzzleGrid');
     const backBtn = document.getElementById('backBtn');
     const newGameBtn = document.getElementById('newGameBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const shareBtnSuccess = document.getElementById('shareBtnSuccess');
+    const confettiEl = document.getElementById('confetti');
 
     let currentImageSrc = '';
     let gridSize = 3;
-    let pieceOrder = [];       // текущий порядок кусочков (индексы)
-    let correctOrder = [];     // правильный порядок: [0,1,2,...,8]
+    let pieceOrder = [];
+    let correctOrder = [];
     let selectedPieceIndex = null;
 
-    // Генерация правильного порядка
+    // Инициализация правильного порядка
     function initCorrectOrder() {
-      correctOrder = [];
-      for (let i = 0; i < gridSize * gridSize; i++) {
-        correctOrder.push(i);
-      }
+      correctOrder = Array.from({length: gridSize * gridSize}, (_, i) => i);
     }
 
-    // Выбор фото
+    // Загрузка фото
     imageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -182,6 +228,14 @@
       generatePuzzle(currentImageSrc, gridSize);
     });
 
+    // Поделиться (заглушка — пока только alert)
+    shareBtn.addEventListener('click', () => {
+      alert(' soon: поделиться в чате!');
+    });
+    shareBtnSuccess.addEventListener('click', () => {
+      alert(' soon: поделиться в чате!');
+    });
+
     // Генерация пазла
     function generatePuzzle(imageSrc, size) {
       puzzleGrid.innerHTML = '';
@@ -189,8 +243,8 @@
 
       const totalPieces = size * size;
       pieceOrder = Array.from({length: totalPieces}, (_, i) => i);
-      
-      // Перемешиваем (Fisher-Yates)
+
+      // Перемешиваем
       for (let i = totalPieces - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pieceOrder[i], pieceOrder[j]] = [pieceOrder[j], pieceOrder[i]];
@@ -204,23 +258,22 @@
 
         const piece = document.createElement('div');
         piece.className = 'puzzle-piece';
-        piece.dataset.index = gridIndex; // номер в сетке (0..8)
+        piece.dataset.index = gridIndex;
         piece.style.backgroundImage = `url(${imageSrc})`;
         piece.style.backgroundPosition = `${col * pieceSizePercent}% ${row * pieceSizePercent}%`;
         piece.style.backgroundSize = `${size * 100}%`;
 
         piece.addEventListener('click', () => {
           if (selectedPieceIndex === null) {
-            // Выбрали первый кусочек
+            // Выбрали первый
             selectedPieceIndex = gridIndex;
-            piece.style.border = '2px solid #0088cc';
+            piece.classList.add('selected');
           } else {
-            // Выбрали второй — меняем местами
+            // Второй — меняем
             const otherIndex = selectedPieceIndex;
             swapPieces(otherIndex, gridIndex);
             selectedPieceIndex = null;
-            // Снимаем выделение
-            document.querySelectorAll('.puzzle-piece').forEach(p => p.style.border = '1px solid #ddd');
+            document.querySelectorAll('.puzzle-piece').forEach(p => p.classList.remove('selected'));
           }
         });
 
@@ -228,14 +281,12 @@
       });
     }
 
-    // Меняем местами два кусочка в сетке
     function swapPieces(i, j) {
       [pieceOrder[i], pieceOrder[j]] = [pieceOrder[j], pieceOrder[i]];
       updatePuzzleGrid();
       checkWin();
     }
 
-    // Обновляем отображение после обмена
     function updatePuzzleGrid() {
       const pieces = puzzleGrid.querySelectorAll('.puzzle-piece');
       const size = gridSize;
@@ -249,12 +300,33 @@
       });
     }
 
-    // Проверка победы
     function checkWin() {
       if (JSON.stringify(pieceOrder) === JSON.stringify(correctOrder)) {
         puzzleSection.style.display = 'none';
         successSection.style.display = 'block';
+        playConfetti();
       }
+    }
+
+    // Анимация конфетти при победе
+    function playConfetti() {
+      confettiEl.style.display = 'block';
+      confettiEl.innerHTML = '';
+      const colors = ['#ff4444', '#ffaa33', '#ffff44', '#44ff44', '#44aaff', '#ff44aa'];
+      for (let i = 0; i <; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.width = (Math.random() * 12 + 6) + 'px';
+        piece.style.height = piece.style.width;
+        piece.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        piece.style.animationDelay = Math.random() * 0.5 + 's';
+        confettiEl.appendChild(piece);
+      }
+      setTimeout(() => {
+        confettiEl.style.display = 'none';
+      }, 3000);
     }
   </script>
 </body>
