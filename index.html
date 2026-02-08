@@ -7,7 +7,7 @@
   <style>
     body {
       margin: 0;
-      padding: 20px 20px 100px; /* extra bottom for iOS safe area */
+      padding: 20px 20px 100px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       background: #f5f5f5;
       display: flex;
@@ -93,7 +93,7 @@
     }
     #backBtn { background: #666; }
     #newGameBtn { background: #4CAF50; }
-    #shareBtn {
+    #shareBtn, #shareBtnSuccess {
       background: #ff9800;
       margin-top: 16px;
     }
@@ -106,27 +106,6 @@
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
-    }
-    .confetti {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 100;
-      display: none;
-    }
-    .confetti-piece {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      background-color: #f00;
-      border-radius: 50%;
-      animation: fall linear forwards;
-    }
-    @keyframes fall {
-      to { transform: translateY(100vh) rotate(720deg); }
     }
   </style>
 </head>
@@ -157,14 +136,11 @@
     </div>
   </div>
 
-  <div class="confetti" id="confetti"></div>
-
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     Telegram.WebApp.expand();
     Telegram.WebApp.ready();
 
-    // DOM
     const imageInput = document.getElementById('imageInput');
     const preview = document.getElementById('preview');
     const nextBtn = document.getElementById('nextBtn');
@@ -176,7 +152,6 @@
     const newGameBtn = document.getElementById('newGameBtn');
     const shareBtn = document.getElementById('shareBtn');
     const shareBtnSuccess = document.getElementById('shareBtnSuccess');
-    const confettiEl = document.getElementById('confetti');
 
     let currentImageSrc = '';
     let gridSize = 3;
@@ -184,12 +159,10 @@
     let correctOrder = [];
     let selectedPieceIndex = null;
 
-    // Инициализация правильного порядка
     function initCorrectOrder() {
       correctOrder = Array.from({length: gridSize * gridSize}, (_, i) => i);
     }
 
-    // Загрузка фото
     imageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -203,7 +176,6 @@
       reader.readAsDataURL(file);
     });
 
-    // Создать пазл
     nextBtn.addEventListener('click', () => {
       if (!currentImageSrc) return;
       initCorrectOrder();
@@ -213,7 +185,6 @@
       successSection.style.display = 'none';
     });
 
-    // Назад
     backBtn.addEventListener('click', () => {
       uploadSection.style.display = 'block';
       puzzleSection.style.display = 'none';
@@ -221,22 +192,19 @@
       puzzleGrid.innerHTML = '';
     });
 
-    // Новая игра
     newGameBtn.addEventListener('click', () => {
       successSection.style.display = 'none';
       puzzleSection.style.display = 'block';
       generatePuzzle(currentImageSrc, gridSize);
     });
 
-    // Поделиться (заглушка — пока только alert)
     shareBtn.addEventListener('click', () => {
-      alert(' soon: поделиться в чате!');
+      alert('Функция "Поделиться" будет добавлена позже!');
     });
     shareBtnSuccess.addEventListener('click', () => {
-      alert(' soon: поделиться в чате!');
+      alert('Функция "Поделиться" будет добавлена позже!');
     });
 
-    // Генерация пазла
     function generatePuzzle(imageSrc, size) {
       puzzleGrid.innerHTML = '';
       puzzleGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
@@ -265,11 +233,9 @@
 
         piece.addEventListener('click', () => {
           if (selectedPieceIndex === null) {
-            // Выбрали первый
             selectedPieceIndex = gridIndex;
             piece.classList.add('selected');
           } else {
-            // Второй — меняем
             const otherIndex = selectedPieceIndex;
             swapPieces(otherIndex, gridIndex);
             selectedPieceIndex = null;
@@ -304,29 +270,7 @@
       if (JSON.stringify(pieceOrder) === JSON.stringify(correctOrder)) {
         puzzleSection.style.display = 'none';
         successSection.style.display = 'block';
-        playConfetti();
       }
-    }
-
-    // Анимация конфетти при победе
-    function playConfetti() {
-      confettiEl.style.display = 'block';
-      confettiEl.innerHTML = '';
-      const colors = ['#ff4444', '#ffaa33', '#ffff44', '#44ff44', '#44aaff', '#ff44aa'];
-      for (let i = 0; i <; i++) {
-        const piece = document.createElement('div');
-        piece.className = 'confetti-piece';
-        piece.style.left = Math.random() * 100 + '%';
-        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        piece.style.width = (Math.random() * 12 + 6) + 'px';
-        piece.style.height = piece.style.width;
-        piece.style.animationDuration = (Math.random() * 3 + 2) + 's';
-        piece.style.animationDelay = Math.random() * 0.5 + 's';
-        confettiEl.appendChild(piece);
-      }
-      setTimeout(() => {
-        confettiEl.style.display = 'none';
-      }, 3000);
     }
   </script>
 </body>
